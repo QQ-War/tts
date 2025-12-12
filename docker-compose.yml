@@ -6,11 +6,17 @@ services:
       context: .
       dockerfile: python_app/Dockerfile
     environment:
-      TTS_CONFIG_PATH: /app/config.yaml
-      AZURE_TTS_KEY: ${AZURE_TTS_KEY:-}
-      AZURE_TTS_REGION: ${AZURE_TTS_REGION:-}
+      AZURE_TTS_KEY: ${AZURE_TTS_KEY}
+      AZURE_TTS_REGION: ${AZURE_TTS_REGION}
+      TTS_API_KEY: ${TTS_API_KEY}
+      TTS_DEFAULT_VOICE: ${TTS_DEFAULT_VOICE:-zh-CN-XiaoxiaoNeural}
+      TTS_DEFAULT_STYLE: ${TTS_DEFAULT_STYLE:-general}
+      TTS_DEFAULT_RATE: ${TTS_DEFAULT_RATE:-+0%}
+      TTS_DEFAULT_PITCH: ${TTS_DEFAULT_PITCH:-+0%}
+      TTS_OUTPUT_FORMAT: ${TTS_OUTPUT_FORMAT:-audio-24khz-160kbitrate-mono-mp3}
+      TTS_MAX_TEXT_LENGTH: ${TTS_MAX_TEXT_LENGTH:-4500}
+      TTS_SEGMENT_LENGTH: ${TTS_SEGMENT_LENGTH:-300}
+      TTS_ENABLE_STREAMING: ${TTS_ENABLE_STREAMING:-false}
     ports:
       - "8000:8000"
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped

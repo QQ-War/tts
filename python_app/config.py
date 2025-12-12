@@ -1,17 +1,6 @@
-import json
 import os
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, Optional
-
-try:  # PyYAML may not be available in restricted environments
-    import yaml
-except ImportError:  # pragma: no cover - fallback path exercised in tests
-    yaml = None
-
-
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
-CONFIG_PATH_ENV = "TTS_CONFIG_PATH"
+from typing import Optional
 
 
 @dataclass
@@ -29,33 +18,24 @@ class Settings:
     enable_streaming: bool = False
 
     @classmethod
-    def from_file(cls, path: Optional[str] = None) -> "Settings":
-        config_path = Path(path or os.getenv(CONFIG_PATH_ENV, DEFAULT_CONFIG_PATH))
-        if not config_path.is_file():
-            raise RuntimeError(f"Config file not found at {config_path}")
-
-        data = _load_yaml(config_path)
-        azure_cfg = data.get("azure", {})
-        defaults = data.get("defaults", {})
-        auth_cfg = data.get("auth", {})
-
-        azure_key = os.getenv("AZURE_TTS_KEY") or azure_cfg.get("key")
-        azure_region = os.getenv("AZURE_TTS_REGION") or azure_cfg.get("region")
-        if not azure_key or not azure_region:
-            raise RuntimeError("Azure Speech key/region must be provided in config.yaml or environment")
+    def from_env(cls) -> "Settings":
+        key = os.getenv("AZURE_TTS_KEY")
+        region = os.getenv("AZURE_TTS_REGION")
+        if not key or not region:
+            raise RuntimeError("AZURE_TTS_KEY and AZURE_TTS_REGION must be set")
 
         return cls(
-            azure_key=azure_key,
-            azure_region=azure_region,
-            api_key=os.getenv("TTS_API_KEY", auth_cfg.get("api_key", cls.api_key)),
-            default_voice=defaults.get("voice", cls.default_voice),
-            default_style=defaults.get("style", cls.default_style),
-            default_rate=defaults.get("rate", cls.default_rate),
-            default_pitch=defaults.get("pitch", cls.default_pitch),
-            output_format=defaults.get("output_format", cls.output_format),
-            max_text_length=int(defaults.get("max_text_length", cls.max_text_length)),
-            segment_length=int(defaults.get("segment_length", cls.segment_length)),
-            enable_streaming=_coerce_bool(defaults.get("enable_streaming", cls.enable_streaming)),
+            azure_key=key,
+            azure_region=region,
+            api_key=os.getenv("TTS_API_KEY", cls.api_key),
+            default_voice=os.getenv("TTS_DEFAULT_VOICE", cls.default_voice),
+            default_style=os.getenv("TTS_DEFAULT_STYLE", cls.default_style),
+            default_rate=os.getenv("TTS_DEFAULT_RATE", cls.default_rate),
+            default_pitch=os.getenv("TTS_DEFAULT_PITCH", cls.default_pitch),
+            output_format=os.getenv("TTS_OUTPUT_FORMAT", cls.output_format),
+            max_text_length=int(os.getenv("TTS_MAX_TEXT_LENGTH", cls.max_text_length)),
+            segment_length=int(os.getenv("TTS_SEGMENT_LENGTH", cls.segment_length)),
+            enable_streaming=_get_bool("TTS_ENABLE_STREAMING", cls.enable_streaming),
         )
 
 
@@ -65,31 +45,12 @@ settings: Optional[Settings] = None
 def get_settings() -> Settings:
     global settings
     if settings is None:
-        settings = Settings.from_file()
+        settings = Settings.from_env()
     return settings
 
 
-def _load_yaml(path: Path) -> Dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    if yaml is not None:
-        return yaml.safe_load(text) or {}
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as exc:  # pragma: no cover - guidance for missing deps
-        raise RuntimeError(
-            "PyYAML is not installed and config.yaml is not valid JSON. "
-            "Install PyYAML or provide JSON-formatted config."
-        ) from exc
-
-
-def _coerce_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
+def _get_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
     if value is None:
-        return False
-    if isinstance(value, (int, float)):
-        return bool(value)
-    if isinstance(value, str):
-        return value.lower() in {"1", "true", "t", "yes", "y", "on"}
-    return False
+        return default
+    return value.lower() in {"1", "true", "t", "yes", "y", "on"}
