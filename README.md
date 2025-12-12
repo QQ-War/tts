@@ -92,10 +92,10 @@ GET /api/v1/voices[?locale=en-US]
 
 ### 文本转语音
 ```shell
-# GET，流式可通过 query 开启
-GET /api/v1/tts?t=你好世界&voice=zh-CN-XiaoxiaoNeural&stream=true
+# GET，既支持长参数 ?text= 也支持短参数 ?t=，流式可通过 query 开启
+GET /api/v1/tts?text=你好世界&voice=zh-CN-XiaoxiaoNeural&stream=true
 
-# POST，支持更多参数
+# POST，支持更多参数（同样支持 text/t、voice/v 等别名）
 POST /api/v1/tts
 {
   "text": "你好世界",

@@ -51,12 +51,18 @@ async def voices(
 
 @app.get("/api/v1/tts")
 async def tts_get(
-    text: str = Query(alias="t"),
-    voice: Optional[str] = Query(default=None, alias="v"),
-    rate: Optional[str] = Query(default=None, alias="r"),
-    pitch: Optional[str] = Query(default=None, alias="p"),
-    style: Optional[str] = Query(default=None, alias="s"),
-    output_format: Optional[str] = Query(default=None, alias="f"),
+    text: Optional[str] = Query(default=None),
+    t: Optional[str] = Query(default=None, alias="t"),
+    voice: Optional[str] = Query(default=None),
+    v: Optional[str] = Query(default=None, alias="v"),
+    rate: Optional[str] = Query(default=None),
+    r: Optional[str] = Query(default=None, alias="r"),
+    pitch: Optional[str] = Query(default=None),
+    p: Optional[str] = Query(default=None, alias="p"),
+    style: Optional[str] = Query(default=None),
+    s: Optional[str] = Query(default=None, alias="s"),
+    output_format: Optional[str] = Query(default=None),
+    f: Optional[str] = Query(default=None, alias="f"),
     stream: Optional[bool] = Query(
         default=None,
         alias="stream",
@@ -65,13 +71,17 @@ async def tts_get(
     authorization: Optional[str] = Header(default=None),
     api_key: Optional[str] = Query(default=None, alias="api_key"),
 ):
+    resolved_text = text or t
+    if not resolved_text:
+        raise HTTPException(status_code=400, detail="text is required")
+
     return await _speak(
-        text,
-        voice,
-        rate,
-        pitch,
-        style,
-        output_format,
+        resolved_text,
+        voice or v,
+        rate or r,
+        pitch or p,
+        style or s,
+        output_format or f,
         stream,
         authorization,
         api_key,
