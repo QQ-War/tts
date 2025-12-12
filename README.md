@@ -28,10 +28,10 @@ uvicorn python_app.main:app --reload
 
 ### Docker / Compose
 ```shell
-# 使用 docker-compose（默认读取仓库根目录的 config.yaml）
-docker-compose up --build azure-tts
+# 启动后端（默认读取仓库根目录的 config.yaml）
+docker-compose up --build
 
-# 或自行构建镜像并挂载配置
+# 单独构建运行后端镜像
 docker build -t azure-tts -f python_app/Dockerfile .
 docker run -p 8000:8000 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
