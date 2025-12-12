@@ -39,6 +39,10 @@ docker run -p 8000:8000 \
   azure-tts
 ```
 
+> 关于 `docker-compose.yml` 中的 `context: .`：这是 Docker 构建时的上下文目录，Dockerfile 会从该目录内复制 `python_app/` 与根目录下的
+> `config.yaml` 进入镜像。如果你已有预构建镜像，可以把 compose 里的 `build:` 块替换成 `image: <your-image>`，此时就不需要 `context`
+> 和 `dockerfile` 字段了。
+
 ## ⚙️ 配置
 
 所有配置集中在仓库根目录的 `config.yaml`（支持 YAML/JSON），可通过环境变量 `TTS_CONFIG_PATH` 指向自定义路径。`AZURE_TTS_KEY` 与 `AZURE_TTS_REGION` 可使用环境变量覆盖，以便在生产环境中避免将密钥写入文件。

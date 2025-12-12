@@ -3,6 +3,11 @@ version: "3.9"
 services:
   azure-tts:
     build:
+      # The build context is the root of this repository so the Dockerfile can copy
+      # python_app/ and the top-level config.yaml into the image during `docker compose build`.
+      # If you prefer to use a prebuilt image, replace this build block with
+      #   image: your-registry/azure-tts:latest
+      # and remove the context/dockerfile entries.
       context: .
       dockerfile: python_app/Dockerfile
     environment:
