@@ -8,6 +8,7 @@ WORKDIR /app
 COPY python_app/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY config.yaml ./config.yaml
 COPY python_app/ ./python_app
 
 EXPOSE 8000

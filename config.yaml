@@ -1,19 +1,16 @@
-{
-  "azure": {
-    "key": "YOUR_AZURE_KEY",
-    "region": "YOUR_AZURE_REGION"
-  },
-  "auth": {
-    "api_key": "YOUR_API_KEY"
-  },
-  "defaults": {
-    "voice": "zh-CN-XiaoxiaoNeural",
-    "style": "general",
-    "rate": "+0%",
-    "pitch": "+0%",
-    "output_format": "audio-24khz-160kbitrate-mono-mp3",
-    "max_text_length": 4500,
-    "segment_length": 300,
-    "enable_streaming": false
-  }
-}
+azure:
+  key: YOUR_AZURE_KEY
+  region: YOUR_AZURE_REGION
+
+auth:
+  api_key: YOUR_API_KEY
+
+defaults:
+  voice: zh-CN-XiaoxiaoNeural
+  style: general
+  rate: "+0%"
+  pitch: "+0%"
+  output_format: audio-24khz-160kbitrate-mono-mp3
+  max_text_length: 4500
+  segment_length: 300
+  enable_streaming: false

@@ -1,6 +1,6 @@
 # Azure TTS 服务（Python 版）
 
-这是一个基于 Microsoft Azure 语音服务的文本转语音 (TTS) 服务，使用 **Python + FastAPI** 实现，支持长文本自动切分、可选流式音频返回以及客户端 API Key 校验。
+这是一个基于 Microsoft Azure 语音服务的文本转语音 (TTS) 服务，使用 **Python + FastAPI** 实现，支持长文本自动切分、可选流式音频返回以及客户端 API Key 校验。所有配置统一从 `config.yaml` 读取，便于部署与管理。
 
 ## ✨ 主要特性
 - 纯 Azure 语音服务调用，支持语音列表和文本转语音接口。
@@ -13,53 +13,56 @@
 
 ### 本地运行（Python）
 ```shell
+# 安装依赖
 cd python_app
 pip install -r requirements.txt
 
-# 设置 Azure 凭据与可选客户端 API Key
-export AZURE_TTS_KEY=你的AzureKey
-export AZURE_TTS_REGION=你的Region
-export TTS_API_KEY=YOUR_API_KEY  # 可选，但建议开启
+# 在项目根目录配置 config.yaml（示例见下文）
+# 如需避免将密钥写入文件，可通过环境变量覆盖：
+#   export AZURE_TTS_KEY=你的AzureKey
+#   export AZURE_TTS_REGION=你的Region
 
-# 可选：自定义默认参数
-export TTS_DEFAULT_VOICE=zh-CN-XiaoxiaoNeural
-export TTS_SEGMENT_LENGTH=300
-export TTS_ENABLE_STREAMING=true  # 默认开启流式
-
-# 启动服务（默认端口 8000）
+# 启动服务（默认端口 8000，可通过 TTS_CONFIG_PATH 指定配置文件路径）
 uvicorn python_app.main:app --reload
 ```
 
 ### Docker / Compose
 ```shell
-# 仅启动 Azure TTS Python 服务
+# 使用 docker-compose（默认读取仓库根目录的 config.yaml）
 docker-compose up --build azure-tts
 
-# 或使用镜像直接运行
-cd python_app
-docker build -t azure-tts .
+# 或自行构建镜像并挂载配置
+docker build -t azure-tts -f python_app/Dockerfile .
 docker run -p 8000:8000 \
-  -e AZURE_TTS_KEY=你的AzureKey \
-  -e AZURE_TTS_REGION=你的Region \
-  -e TTS_API_KEY=YOUR_API_KEY \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -e TTS_CONFIG_PATH=/app/config.yaml \
   azure-tts
 ```
 
 ## ⚙️ 配置
 
-环境变量 | 说明 | 默认值
----|---|---
-`AZURE_TTS_KEY` | Azure 语音服务密钥 | 必填
-`AZURE_TTS_REGION` | Azure 区域，例如 `eastasia` | 必填
-`TTS_API_KEY` | 客户端访问校验用 Key | 空（不校验）
-`TTS_DEFAULT_VOICE` | 默认语音 | `zh-CN-XiaoxiaoNeural`
-`TTS_DEFAULT_STYLE` | 默认风格 | `general`
-`TTS_DEFAULT_RATE` | 默认语速 | `+0%`
-`TTS_DEFAULT_PITCH` | 默认语调 | `+0%`
-`TTS_OUTPUT_FORMAT` | 音频格式 | `audio-24khz-160kbitrate-mono-mp3`
-`TTS_MAX_TEXT_LENGTH` | 单次文本长度上限 | `4500`
-`TTS_SEGMENT_LENGTH` | 自动切段阈值 | `300`
-`TTS_ENABLE_STREAMING` | 默认是否流式返回 | `false`
+所有配置集中在仓库根目录的 `config.yaml`（支持 YAML/JSON），可通过环境变量 `TTS_CONFIG_PATH` 指向自定义路径。`AZURE_TTS_KEY` 与 `AZURE_TTS_REGION` 可使用环境变量覆盖，以便在生产环境中避免将密钥写入文件。
+
+```yaml
+azure:
+  key: YOUR_AZURE_KEY            # 必填，可被环境变量 AZURE_TTS_KEY 覆盖
+  region: YOUR_AZURE_REGION      # 必填，可被环境变量 AZURE_TTS_REGION 覆盖
+
+auth:
+  api_key: YOUR_API_KEY          # 为空则关闭客户端鉴权
+
+defaults:
+  voice: zh-CN-XiaoxiaoNeural
+  style: general
+  rate: "+0%"
+  pitch: "+0%"
+  output_format: audio-24khz-160kbitrate-mono-mp3
+  max_text_length: 4500
+  segment_length: 300
+  enable_streaming: false
+```
+
+> 如果更偏好 JSON 格式，`config.yaml` 也支持 JSON 内容。
 
 ## 📚 API
 
