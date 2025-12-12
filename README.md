@@ -36,12 +36,18 @@ docker build -t azure-tts -f python_app/Dockerfile .
 docker run -p 8000:8000 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
   -e TTS_CONFIG_PATH=/app/config.yaml \
+  -e LOG_LEVEL=INFO \
   azure-tts
 ```
 
 > 关于 `docker-compose.yml` 中的 `context: .`：这是 Docker 构建时的上下文目录，Dockerfile 会从该目录内复制 `python_app/` 与根目录下的
 > `config.yaml` 进入镜像。如果你已有预构建镜像，可以把 compose 里的 `build:` 块替换成 `image: <your-image>`，此时就不需要 `context`
 > 和 `dockerfile` 字段了。
+
+## 📝 日志
+
+- 应用与 uvicorn 日志默认输出到标准输出/错误，可直接通过 `docker compose logs -f azure-tts` 或 `docker logs <container>` 查看。
+- 如需调整日志级别，可设置环境变量 `LOG_LEVEL`（默认 `INFO`，如 `DEBUG/INFO/WARNING/ERROR`）。
 
 ## ⚙️ 配置
 
@@ -112,3 +118,4 @@ python -m pytest python_app
 ```
 
 > 说明：仓库已移除旧的 Go 后端，仅保留 Python 实现与相关容器配置。
+> 历史上的 `workers/`（Cloudflare Worker 代理）现已删除，后端直接通过 Azure 语音服务即可正常使用。

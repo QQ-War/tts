@@ -14,6 +14,7 @@ services:
       TTS_CONFIG_PATH: /app/config.yaml
       AZURE_TTS_KEY: ${AZURE_TTS_KEY:-}
       AZURE_TTS_REGION: ${AZURE_TTS_REGION:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     volumes:

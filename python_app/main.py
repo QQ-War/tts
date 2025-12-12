@@ -1,4 +1,6 @@
 import logging
+import os
+import sys
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
@@ -8,8 +10,12 @@ from .azure_tts import AzureTTSClient, warmup
 from .auth import require_api_key
 from .config import get_settings
 
-
-logging.basicConfig(level=logging.INFO)
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    stream=sys.stdout,
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Azure TTS Service", version="1.0.0")
