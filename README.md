@@ -80,6 +80,8 @@ defaults:
 - `Authorization: Bearer <api_key>`
 - 查询参数 `?api_key=...`
 
+> 说明：`rate`、`pitch` 若只传数字（如 `0`、`-5`），服务会自动补全为带符号的百分比（如 `+0%`、`-5%`），以避免 Azure SSML 解析报 “unsupported format”。
+
 ### 健康检查
 ```shell
 GET /api/v1/health

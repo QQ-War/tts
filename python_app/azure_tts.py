@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from typing import Dict, List, Optional
 
 import httpx
@@ -47,6 +48,9 @@ class AzureTTSClient:
         style_value = style or settings.default_style
         format_value = output_format or settings.output_format
 
+        rate_value = self._normalize_prosody(rate_value, settings.default_rate)
+        pitch_value = self._normalize_prosody(pitch_value, settings.default_pitch)
+
         if len(text) > settings.max_text_length:
             raise ValueError(f"Text length exceeds limit of {settings.max_text_length}")
 
@@ -84,6 +88,9 @@ class AzureTTSClient:
         pitch_value = pitch or settings.default_pitch
         style_value = style or settings.default_style
         format_value = output_format or settings.output_format
+
+        rate_value = self._normalize_prosody(rate_value, settings.default_rate)
+        pitch_value = self._normalize_prosody(pitch_value, settings.default_pitch)
 
         if len(text) > settings.max_text_length:
             raise ValueError(f"Text length exceeds limit of {settings.max_text_length}")
@@ -179,6 +186,33 @@ class AzureTTSClient:
             pitch=pitch,
             text=escaped_text,
         )
+
+    @staticmethod
+    def _normalize_prosody(value: Optional[str], default: str) -> str:
+        """Ensure rate/pitch values conform to SSML expectations.
+
+        Azure expects a signed percentage (e.g., +0%, -5%). If callers supply a
+        bare integer or float, we coerce it into that format. Any invalid value
+        falls back to the configured default to avoid SSML parsing errors.
+        """
+
+        if value is None:
+            return default
+
+        trimmed = str(value).strip()
+        if not trimmed:
+            return default
+
+        if trimmed.endswith("%"):
+            return trimmed
+
+        if re.match(r"^[+-]?\d+(?:\.\d+)?$", trimmed):
+            if not trimmed.startswith(("+", "-")):
+                trimmed = f"+{trimmed}"
+            return f"{trimmed}%"
+
+        logger.warning("Invalid prosody value '%s'; using default '%s'", trimmed, default)
+        return default
 
     def _auth_headers(self) -> Dict[str, str]:
         return {
