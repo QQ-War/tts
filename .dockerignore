@@ -6,7 +6,6 @@
 README.md
 README-SEPARATION.md
 CLAUDE.md
-Dockerfile*
 
 # Docker 相关
 docker-compose*.yml
