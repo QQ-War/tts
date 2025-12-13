@@ -15,8 +15,13 @@ services:
       AZURE_TTS_KEY: ${AZURE_TTS_KEY:-}
       AZURE_TTS_REGION: ${AZURE_TTS_REGION:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      TELEGRAM_NOTIFICATIONS_ENABLED: ${TELEGRAM_NOTIFICATIONS_ENABLED:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_DAILY_HOUR_UTC: ${TELEGRAM_DAILY_HOUR_UTC:-}
     ports:
       - "8000:8000"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
+      - ./cost:/app/cost
     restart: unless-stopped

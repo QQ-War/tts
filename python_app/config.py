@@ -19,6 +19,12 @@ class Settings:
     azure_key: str
     azure_region: str
     api_key: str = ""
+    cost_output_dir: str = "/app/cost"
+    price_per_million_chars: float = 15.0
+    telegram_enabled: bool = False
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    telegram_daily_hour_utc: int = 9
     default_voice: str = "zh-CN-XiaoxiaoNeural"
     default_style: str = "general"
     default_rate: str = "+0%"
@@ -38,6 +44,8 @@ class Settings:
         azure_cfg = data.get("azure", {})
         defaults = data.get("defaults", {})
         auth_cfg = data.get("auth", {})
+        cost_cfg = data.get("cost", {})
+        telegram_cfg = data.get("telegram", {})
 
         azure_key = os.getenv("AZURE_TTS_KEY") or azure_cfg.get("key")
         azure_region = os.getenv("AZURE_TTS_REGION") or azure_cfg.get("region")
@@ -56,6 +64,29 @@ class Settings:
             max_text_length=int(defaults.get("max_text_length", cls.max_text_length)),
             segment_length=int(defaults.get("segment_length", cls.segment_length)),
             enable_streaming=_coerce_bool(defaults.get("enable_streaming", cls.enable_streaming)),
+            cost_output_dir=os.getenv("COST_OUTPUT_DIR", cost_cfg.get("output_dir", cls.cost_output_dir)),
+            price_per_million_chars=_coerce_float(
+                os.getenv("PRICE_PER_MILLION_CHARS", cost_cfg.get("price_per_million_chars", cls.price_per_million_chars)),
+                cls.price_per_million_chars,
+            ),
+            telegram_enabled=_coerce_bool(
+                os.getenv(
+                    "TELEGRAM_NOTIFICATIONS_ENABLED",
+                    telegram_cfg.get("enabled", cls.telegram_enabled),
+                )
+            ),
+            telegram_bot_token=os.getenv(
+                "TELEGRAM_BOT_TOKEN", telegram_cfg.get("bot_token", cls.telegram_bot_token)
+            ),
+            telegram_chat_id=os.getenv(
+                "TELEGRAM_CHAT_ID", telegram_cfg.get("chat_id", cls.telegram_chat_id)
+            ),
+            telegram_daily_hour_utc=int(
+                os.getenv(
+                    "TELEGRAM_DAILY_HOUR_UTC",
+                    telegram_cfg.get("daily_hour_utc", cls.telegram_daily_hour_utc),
+                )
+            ),
         )
 
 
@@ -93,3 +124,10 @@ def _coerce_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.lower() in {"1", "true", "t", "yes", "y", "on"}
     return False
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default

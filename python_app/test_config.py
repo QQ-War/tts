@@ -13,6 +13,7 @@ def test_settings_load_from_yaml(tmp_path, monkeypatch):
 {
   "azure": {"key": "test-key", "region": "eastasia"},
   "auth": {"api_key": "client-key"},
+  "cost": {"output_dir": "/tmp/costs", "price_per_million_chars": 20},
   "defaults": {
     "voice": "custom-voice",
     "style": "excited",
@@ -22,6 +23,12 @@ def test_settings_load_from_yaml(tmp_path, monkeypatch):
     "max_text_length": 999,
     "segment_length": 123,
     "enable_streaming": true
+  },
+  "telegram": {
+    "enabled": true,
+    "bot_token": "tg-token",
+    "chat_id": "tg-chat",
+    "daily_hour_utc": 6
   }
 }
         """,
@@ -43,6 +50,12 @@ def test_settings_load_from_yaml(tmp_path, monkeypatch):
     assert settings.max_text_length == 999
     assert settings.segment_length == 123
     assert settings.enable_streaming is True
+    assert settings.cost_output_dir == "/tmp/costs"
+    assert settings.price_per_million_chars == 20.0
+    assert settings.telegram_enabled is True
+    assert settings.telegram_bot_token == "tg-token"
+    assert settings.telegram_chat_id == "tg-chat"
+    assert settings.telegram_daily_hour_utc == 6
 
 
 def test_env_override_for_secrets(tmp_path, monkeypatch):
@@ -51,7 +64,8 @@ def test_env_override_for_secrets(tmp_path, monkeypatch):
         """
 {
   "azure": {"key": "file-key", "region": "file-region"},
-  "auth": {}
+  "auth": {},
+  "cost": {"price_per_million_chars": 50}
 }
         """,
         encoding="utf-8",
@@ -59,9 +73,21 @@ def test_env_override_for_secrets(tmp_path, monkeypatch):
 
     monkeypatch.setenv("AZURE_TTS_KEY", "env-key")
     monkeypatch.setenv("AZURE_TTS_REGION", "env-region")
+    monkeypatch.setenv("COST_OUTPUT_DIR", "/data/costs")
+    monkeypatch.setenv("PRICE_PER_MILLION_CHARS", "25.5")
+    monkeypatch.setenv("TELEGRAM_NOTIFICATIONS_ENABLED", "true")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "env-token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "env-chat")
+    monkeypatch.setenv("TELEGRAM_DAILY_HOUR_UTC", "12")
     config_module.settings = None
 
     settings = Settings.from_file(cfg)
 
     assert settings.azure_key == "env-key"
     assert settings.azure_region == "env-region"
+    assert settings.cost_output_dir == "/data/costs"
+    assert settings.price_per_million_chars == 25.5
+    assert settings.telegram_enabled is True
+    assert settings.telegram_bot_token == "env-token"
+    assert settings.telegram_chat_id == "env-chat"
+    assert settings.telegram_daily_hour_utc == 12

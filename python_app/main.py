@@ -1,14 +1,17 @@
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from .azure_tts import AzureTTSClient, warmup
+from .azure_tts import AzureTTSError, AzureTTSClient, warmup
 from .auth import require_api_key
+from .cost_tracker import CostTracker
 from .config import get_settings
+from .telegram_notifier import TelegramConfig, TelegramNotifier
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
@@ -18,18 +21,32 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+settings = get_settings()
+cost_tracker = CostTracker(Path(settings.cost_output_dir), settings.price_per_million_chars)
+
 app = FastAPI(title="Azure TTS Service", version="1.0.0")
-client = AzureTTSClient()
+client = AzureTTSClient(cost_tracker=cost_tracker)
+telegram_notifier = TelegramNotifier(
+    cost_tracker,
+    TelegramConfig(
+        enabled=settings.telegram_enabled,
+        bot_token=settings.telegram_bot_token,
+        chat_id=settings.telegram_chat_id,
+        daily_hour_utc=settings.telegram_daily_hour_utc,
+    ),
+)
 
 
 @app.on_event("startup")
 async def _startup() -> None:  # pragma: no cover - framework hook
     await warmup(client)
+    telegram_notifier.start()
 
 
 @app.on_event("shutdown")
 async def _shutdown() -> None:  # pragma: no cover - framework hook
     await client.close()
+    await telegram_notifier.stop()
 
 
 @app.get("/api/v1/health")
@@ -43,7 +60,6 @@ async def voices(
     authorization: Optional[str] = Header(default=None),
     api_key: Optional[str] = Query(default=None, alias="api_key"),
 ):
-    settings = get_settings()
     require_api_key(settings.api_key, authorization, api_key)
     voices = await client.list_voices(locale)
     return voices
@@ -130,7 +146,7 @@ async def _speak(
     use_streaming = stream if stream is not None else settings.enable_streaming
     try:
         if use_streaming:
-            audio_iter = await client.synthesize_stream(
+            raw_iter = await client.synthesize_stream(
                 text,
                 voice=voice,
                 rate=rate,
@@ -138,6 +154,19 @@ async def _speak(
                 style=style,
                 output_format=output_format,
             )
+
+            async def stream_with_errors():
+                try:
+                    async for chunk in raw_iter:
+                        yield chunk
+                except AzureTTSError as exc:
+                    logger.warning("Azure streaming failed: %s", exc.message)
+                    raise HTTPException(status_code=exc.status_code, detail=exc.message)
+                except Exception as exc:  # pragma: no cover - unexpected streaming errors
+                    logger.exception("TTS streaming failed")
+                    raise HTTPException(status_code=502, detail=str(exc))
+
+            audio_iter = stream_with_errors()
         else:
             audio = await client.synthesize(
                 text,
@@ -149,6 +178,9 @@ async def _speak(
             )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except AzureTTSError as exc:
+        logger.warning("Azure synthesis failed: %s", exc.message)
+        raise HTTPException(status_code=exc.status_code, detail=exc.message)
     except Exception as exc:  # pragma: no cover - network errors
         logger.exception("TTS synthesis failed")
         raise HTTPException(status_code=502, detail=str(exc))
@@ -172,6 +204,10 @@ async def config_endpoint():
         "segment_length": settings.segment_length,
         "enable_streaming": settings.enable_streaming,
         "region": settings.azure_region,
+        "cost_output_dir": settings.cost_output_dir,
+        "price_per_million_chars": settings.price_per_million_chars,
+        "telegram_enabled": settings.telegram_enabled,
+        "telegram_daily_hour_utc": settings.telegram_daily_hour_utc,
     }
 
 

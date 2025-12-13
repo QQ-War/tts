@@ -5,7 +5,15 @@ from typing import Dict, List, Optional
 
 import httpx
 
+
+class AzureTTSError(Exception):
+    def __init__(self, message: str, status_code: int = 502) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.message = message
+
 from .config import get_settings
+from .cost_tracker import CostTracker
 from .text_utils import escape_ssml, split_text
 
 
@@ -16,9 +24,10 @@ TTS_URL = "https://{region}.tts.speech.microsoft.com/cognitiveservices/v1"
 
 
 class AzureTTSClient:
-    def __init__(self) -> None:
+    def __init__(self, cost_tracker: CostTracker | None = None) -> None:
         self.settings = get_settings()
         self._client = httpx.AsyncClient(timeout=15.0)
+        self.cost_tracker = cost_tracker
 
     async def list_voices(self, locale: Optional[str] = None) -> List[Dict]:
         url = VOICE_URL.format(region=self.settings.azure_region)
@@ -56,6 +65,7 @@ class AzureTTSClient:
 
         parts = split_text(text, settings.segment_length)
         logger.info("Splitting text into %s segments", len(parts))
+        total_chars = sum(len(part) for part in parts)
 
         audio_segments: List[bytes] = []
         for index, part in enumerate(parts, 1):
@@ -68,8 +78,11 @@ class AzureTTSClient:
             audio_segments.append(audio)
 
         if len(audio_segments) == 1:
+            self._record_usage(total_chars)
             return audio_segments[0]
-        return b"".join(audio_segments)
+        combined = b"".join(audio_segments)
+        self._record_usage(total_chars)
+        return combined
 
     async def synthesize_stream(
         self,
@@ -97,21 +110,25 @@ class AzureTTSClient:
 
         parts = split_text(text, settings.segment_length)
         logger.info("Streaming %s segments", len(parts))
+        total_chars = sum(len(part) for part in parts)
 
         async def generator():
-            for index, part in enumerate(parts, 1):
-                logger.debug(
-                    "Streaming segment %s/%s (%s chars)", index, len(parts), len(part)
-                )
-                async for chunk in self._synthesize_single_stream(
-                    part,
-                    voice_name,
-                    rate_value,
-                    pitch_value,
-                    style_value,
-                    format_value,
-                ):
-                    yield chunk
+            try:
+                for index, part in enumerate(parts, 1):
+                    logger.debug(
+                        "Streaming segment %s/%s (%s chars)", index, len(parts), len(part)
+                    )
+                    async for chunk in self._synthesize_single_stream(
+                        part,
+                        voice_name,
+                        rate_value,
+                        pitch_value,
+                        style_value,
+                        format_value,
+                    ):
+                        yield chunk
+            finally:
+                self._record_usage(total_chars)
 
         return generator()
 
@@ -132,11 +149,18 @@ class AzureTTSClient:
             "X-Microsoft-OutputFormat": output_format,
             "User-Agent": "python-azure-tts",
         }
-        response = await self._client.post(
-            url, headers=headers, content=ssml.encode("utf-8")
-        )
-        response.raise_for_status()
-        return response.content
+        try:
+            response = await self._client.post(
+                url, headers=headers, content=ssml.encode("utf-8")
+            )
+            response.raise_for_status()
+            return response.content
+        except httpx.HTTPStatusError as exc:
+            raise AzureTTSError(self._format_http_error(exc), exc.response.status_code)
+        except httpx.TimeoutException as exc:
+            raise AzureTTSError(str(exc), status_code=504)
+        except httpx.HTTPError as exc:
+            raise AzureTTSError(str(exc))
 
     async def _synthesize_single_stream(
         self,
@@ -156,13 +180,20 @@ class AzureTTSClient:
             "User-Agent": "python-azure-tts",
         }
 
-        async with self._client.stream(
-            "POST", url, headers=headers, content=ssml.encode("utf-8")
-        ) as response:
-            response.raise_for_status()
-            async for chunk in response.aiter_bytes():
-                if chunk:
-                    yield chunk
+        try:
+            async with self._client.stream(
+                "POST", url, headers=headers, content=ssml.encode("utf-8")
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    if chunk:
+                        yield chunk
+        except httpx.HTTPStatusError as exc:
+            raise AzureTTSError(self._format_http_error(exc), exc.response.status_code)
+        except httpx.TimeoutException as exc:
+            raise AzureTTSError(str(exc), status_code=504)
+        except httpx.HTTPError as exc:
+            raise AzureTTSError(str(exc))
 
     def _build_ssml(self, text: str, voice: str, rate: str, pitch: str, style: str) -> str:
         escaped_text = escape_ssml(text)
@@ -213,6 +244,20 @@ class AzureTTSClient:
 
         logger.warning("Invalid prosody value '%s'; using default '%s'", trimmed, default)
         return default
+
+    @staticmethod
+    def _format_http_error(exc: httpx.HTTPStatusError) -> str:
+        status = exc.response.status_code if exc.response else "unknown"
+        detail = exc.response.text if exc.response else str(exc)
+        return f"Azure TTS error {status}: {detail}"
+
+    def _record_usage(self, char_count: int) -> None:
+        if not self.cost_tracker or char_count <= 0:
+            return
+        try:
+            self.cost_tracker.record(char_count)
+        except Exception:  # pragma: no cover - I/O failures should not break synthesis
+            logger.warning("Failed to record cost usage", exc_info=True)
 
     def _auth_headers(self) -> Dict[str, str]:
         return {

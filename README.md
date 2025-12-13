@@ -1,13 +1,14 @@
 # Azure TTS 服务（Python 版）
 
-这是一个基于 Microsoft Azure 语音服务的文本转语音 (TTS) 服务，使用 **Python + FastAPI** 实现，支持长文本自动切分、可选流式音频返回以及客户端 API Key 校验。所有配置统一从 `config.yaml` 读取，便于部署与管理。
+这是一个基于 Microsoft Azure 语音服务的文本转语音 (TTS) 服务，使用 **Python + FastAPI** 实现，支持长文本自动切分、可选流式音频返回以及客户端 API Key 校验。所有配置统一从 `config.yaml` 读取，便于部署与管理，同时支持按月统计字符用量并估算 Azure 语音花费，并可通过 Telegram Bot 定时推送用量摘要。
 
 ## ✨ 主要特性
 - 纯 Azure 语音服务调用，支持语音列表和文本转语音接口。
 - 智能分段：按标点和长度自动切段以处理长文本。
 - 流式传输：可配置的分片音频返回，减少播放卡顿。
 - 可选鉴权：通过 `TTS_API_KEY` 校验客户端请求。
-- 容器化：提供 Dockerfile 与 docker-compose 快速部署。
+- 容器化：提供 Dockerfile 与 docker-compose 快速部署，默认挂载 `/app/cost` 以导出月度消耗文件。
+- 用量通知：支持配置 Telegram Bot，每天定时推送当前月份字符用量与费用估算。
 
 ## 🚀 快速开始
 
@@ -28,15 +29,19 @@ uvicorn python_app.main:app --reload
 
 ### Docker / Compose
 ```shell
-# 启动后端（默认读取仓库根目录的 config.yaml）
+# 启动后端（默认读取仓库根目录的 config.yaml，并将 /app/cost 挂载到 ./cost）
 docker-compose up --build
 
 # 单独构建运行后端镜像
 docker build -t azure-tts -f python_app/Dockerfile .
 docker run -p 8000:8000 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/cost:/app/cost \
   -e TTS_CONFIG_PATH=/app/config.yaml \
   -e LOG_LEVEL=INFO \
+  -e TELEGRAM_NOTIFICATIONS_ENABLED=true \
+  -e TELEGRAM_BOT_TOKEN=your_bot_token \
+  -e TELEGRAM_CHAT_ID=your_chat_id \
   azure-tts
 ```
 
@@ -70,6 +75,16 @@ defaults:
   max_text_length: 4500
   segment_length: 300
   enable_streaming: false
+
+cost:
+  output_dir: /app/cost                  # 月度用量与费用估算文件输出目录，可通过 COST_OUTPUT_DIR 覆盖
+  price_per_million_chars: 15            # 每百万字符的价格（美元），可通过 PRICE_PER_MILLION_CHARS 覆盖
+
+telegram:
+  enabled: false                         # 开启 Telegram 用量通知，可被 TELEGRAM_NOTIFICATIONS_ENABLED 覆盖
+  bot_token: YOUR_TELEGRAM_BOT_TOKEN     # Telegram Bot Token，可被 TELEGRAM_BOT_TOKEN 覆盖
+  chat_id: YOUR_TELEGRAM_CHAT_ID         # 目标聊天 ID，可被 TELEGRAM_CHAT_ID 覆盖
+  daily_hour_utc: 9                      # 每天 UTC 小时运行时间，可被 TELEGRAM_DAILY_HOUR_UTC 覆盖
 ```
 
 > 如果更偏好 JSON 格式，`config.yaml` 也支持 JSON 内容。
