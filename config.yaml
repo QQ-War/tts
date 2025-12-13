@@ -1,0 +1,26 @@
+azure:
+  key: YOUR_AZURE_KEY
+  region: YOUR_AZURE_REGION
+
+auth:
+  api_key: YOUR_API_KEY
+
+defaults:
+  voice: zh-CN-XiaoxiaoNeural
+  style: general
+  rate: "+0%"
+  pitch: "+0%"
+  output_format: audio-24khz-160kbitrate-mono-mp3
+  max_text_length: 4500
+  segment_length: 300
+  enable_streaming: false
+
+cost:
+  output_dir: /app/cost
+  price_per_million_chars: 15
+
+telegram:
+  enabled: false
+  bot_token: YOUR_TELEGRAM_BOT_TOKEN
+  chat_id: YOUR_TELEGRAM_CHAT_ID
+  daily_hour_utc: 9
