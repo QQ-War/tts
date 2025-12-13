@@ -11,7 +11,7 @@ defaults:
   rate: "+0%"
   pitch: "+0%"
   output_format: audio-24khz-160kbitrate-mono-mp3
-  max_text_length: 4500
+ https://github.com/QQ-War/tts/pull/9/conflict?name=config.yaml&base_oid=1e7c8607e978e853bf1004570ea60b1d842a50cb&head_oid=097700a8154e28df5605f5232428a61950f36d2b max_text_length: 4500
   segment_length: 300
   enable_streaming: false
 
