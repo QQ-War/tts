@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  tts:
+    build:
+      context: .
+      args:
+        - CACHE_BUST=${CACHE_BUST:-1}
+    container_name: tts-service
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      - TZ=Asia/Shanghai
+      # 在此处添加其他必要的环境变量，例如：
+      # - AZURE_KEY=your_key
+      # - AZURE_REGION=eastus
+    # 如果需要持久化日志或配置，可以在此添加 volumes
+    # volumes:
+    #   - ./configs:/app/configs
+    networks:
+      - tts-network
+
+networks:
+  tts:
+    name: tts-network
+    driver: bridge
