@@ -281,12 +281,6 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 		rate = c.defaultRate
 	}
 
-	// 尝试将纯数字语速（如150）转换为微软格式（如+50）
-	// 阅读APP传递过来的是相对100的百分比数值
-	if val, err := strconv.Atoi(rate); err == nil {
-		rate = fmt.Sprintf("%+d", val-100)
-	}
-
 	pitch := req.Pitch
 	if pitch == "" {
 		pitch = c.defaultPitch
@@ -299,11 +293,25 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 		locale = parts[0] + "-" + parts[1]
 	}
 
-	// 对文本进行HTML转义，防止XML解析错误
+	// 准备文本转义
 	escapedText := c.ssmProcessor.EscapeSSML(req.Text)
 
-	// 准备SSML内容
-	ssml := fmt.Sprintf(ssmlTemplate, locale, voice, style, rate, pitch, escapedText)
+	// 动态构建 SSML，以提高对 HD/Flash 声音的兼容性
+	var ssml string
+	if style == "" || style == "general" {
+		// 简约模式：去掉 express-as，直接使用 prosody
+		// 很多 HD/Flash 声音不支持样式包装，去掉它可以显著提高语速参数的生效概率
+		ssml = fmt.Sprintf(
+			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='%s'>"+
+				"<voice name='%s'>"+
+				"<prosody rate='%s%%' pitch='%s%%' volume='medium'>%s</prosody>"+
+				"</voice></speak>",
+			locale, voice, rate, pitch, escapedText,
+		)
+	} else {
+		// 标准模式：包含样式
+		ssml = fmt.Sprintf(ssmlTemplate, locale, voice, style, rate, pitch, escapedText)
+	}
 
 	// 获取端点信息
 	endpoint, err := c.getEndpoint(ctx)
