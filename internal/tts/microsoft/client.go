@@ -286,6 +286,22 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 		pitch = c.defaultPitch
 	}
 
+	// 统一处理语速和音调的显示格式
+	// 如果是 100% 或为空，则使用 default，这是对 HD 声音最兼容的方式
+	displayRate := rate
+	if rate == "100" || rate == "100.0" || rate == "1.0" || rate == "" {
+		displayRate = "default"
+	} else if _, err := strconv.Atoi(rate); err == nil {
+		displayRate = rate + "%"
+	}
+
+	displayPitch := pitch
+	if pitch == "100" || pitch == "0" || pitch == "" {
+		displayPitch = "default"
+	} else if _, err := strconv.Atoi(pitch); err == nil {
+		displayPitch = pitch + "%"
+	}
+
 	// 提取语言
 	locale := "zh-CN" // 默认
 	parts := strings.Split(voice, "-")
@@ -296,21 +312,26 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 	// 准备文本转义
 	escapedText := c.ssmProcessor.EscapeSSML(req.Text)
 
-	// 动态构建 SSML，以提高对 HD/Flash 声音的兼容性
+	// 动态构建 SSML
 	var ssml string
 	if style == "" || style == "general" {
-		// 简约模式：去掉 express-as，直接使用 prosody
-		// 很多 HD/Flash 声音不支持样式包装，去掉它可以显著提高语速参数的生效概率
 		ssml = fmt.Sprintf(
 			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='%s'>"+
 				"<voice name='%s'>"+
-				"<prosody rate='%s%%' pitch='%s%%' volume='medium'>%s</prosody>"+
+				"<prosody rate='%s' pitch='%s' volume='medium'>%s</prosody>"+
 				"</voice></speak>",
-			locale, voice, rate, pitch, escapedText,
+			locale, voice, displayRate, displayPitch, escapedText,
 		)
 	} else {
-		// 标准模式：包含样式
-		ssml = fmt.Sprintf(ssmlTemplate, locale, voice, style, rate, pitch, escapedText)
+		ssml = fmt.Sprintf(
+			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='%s'>"+
+				"<voice name='%s'>"+
+				"<mstts:express-as style='%s' styledegree='1.0' role='default'>"+
+				"<prosody rate='%s' pitch='%s' volume='medium'>%s</prosody>"+
+				"</mstts:express-as>"+
+				"</voice></speak>",
+			locale, voice, style, displayRate, displayPitch, escapedText,
+		)
 	}
 
 	// 获取端点信息
