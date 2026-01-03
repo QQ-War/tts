@@ -2,10 +2,15 @@ version: '3.8'
 
 services:
   tts:
-    build:
-      context: .
-      args:
-        - CACHE_BUST=${CACHE_BUST:-1}
+    # 方式 A：从 GitHub Container Registry 拉取预编译镜像 (推荐)
+    image: ghcr.io/qq-war/tts:latest
+
+    # 方式 B：从本地源码构建
+    # build:
+    #   context: .
+    #   args:
+    #     - CACHE_BUST=${CACHE_BUST:-1}
+    
     container_name: tts-service
     restart: unless-stopped
     ports:
