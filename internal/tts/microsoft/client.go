@@ -314,15 +314,8 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 
 	// 动态构建 SSML
 	var ssml string
-	if style == "" || style == "general" {
-		ssml = fmt.Sprintf(
-			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='%s'>"+
-				"<voice name='%s'>"+
-				"<prosody rate='%s' pitch='%s' volume='medium'>%s</prosody>"+
-				"</voice></speak>",
-			locale, voice, displayRate, displayPitch, escapedText,
-		)
-	} else {
+	if style != "" {
+		// 只要有 Style（包含 general），就使用带样式的完整 SSML，以支持支持样式的 HD 声音
 		ssml = fmt.Sprintf(
 			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='%s'>"+
 				"<voice name='%s'>"+
@@ -331,6 +324,15 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 				"</mstts:express-as>"+
 				"</voice></speak>",
 			locale, voice, style, displayRate, displayPitch, escapedText,
+		)
+	} else {
+		// 完全没传 Style 时使用极简模式
+		ssml = fmt.Sprintf(
+			"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='%s'>"+
+				"<voice name='%s'>"+
+				"<prosody rate='%s' pitch='%s' volume='medium'>%s</prosody>"+
+				"</voice></speak>",
+			locale, voice, displayRate, displayPitch, escapedText,
 		)
 	}
 
