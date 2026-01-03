@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -278,6 +279,12 @@ func (c *Client) createTTSRequest(ctx context.Context, req models.TTSRequest) (*
 	rate := req.Rate
 	if rate == "" {
 		rate = c.defaultRate
+	}
+
+	// 尝试将纯数字语速（如150）转换为微软格式（如+50）
+	// 阅读APP传递过来的是相对100的百分比数值
+	if val, err := strconv.Atoi(rate); err == nil {
+		rate = fmt.Sprintf("%+d", val-100)
 	}
 
 	pitch := req.Pitch

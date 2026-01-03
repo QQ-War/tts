@@ -512,7 +512,7 @@ func (h *TTSHandler) HandleReader(context *gin.Context) {
 	}
 
 	// 构建基本URL
-	urlParams := []string{"t={{java.encodeURI(speakText)}}", "r={{speakSpeed*4}}"}
+	urlParams := []string{"t={{java.encodeURI(speakText)}}", "r={{speakSpeed}}"}
 
 	// 只有有值的参数才添加
 	if req.Voice != "" {
